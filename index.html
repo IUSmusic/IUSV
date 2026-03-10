@@ -291,6 +291,14 @@
             <input id="motion" type="range" min="1" max="100" step="1" value="58">
           </label>
 
+          <label>Music sync
+            <input id="audioInfluence" type="range" min="0" max="100" step="1" value="88">
+          </label>
+
+          <label>Smoothing
+            <input id="audioSmooth" type="range" min="0" max="100" step="1" value="84">
+          </label>
+
           <label>Wave width
             <input id="waveWidth" type="range" min="70" max="160" step="1" value="118">
           </label>
@@ -402,6 +410,7 @@
 
   </div>
 
+
   <script>
     const canvas = document.getElementById('c');
     const ctx = canvas.getContext('2d', { alpha: true, desynchronized: false });
@@ -410,6 +419,8 @@
       bars: document.getElementById('bars'),
       glow: document.getElementById('glow'),
       motion: document.getElementById('motion'),
+      audioInfluence: document.getElementById('audioInfluence'),
+      audioSmooth: document.getElementById('audioSmooth'),
       waveWidth: document.getElementById('waveWidth'),
       waveHeight: document.getElementById('waveHeight'),
       dotSize: document.getElementById('dotSize'),
@@ -465,6 +476,15 @@
     let currentMime = '';
     let stream = null;
 
+    let audioCtx = null;
+    let analyserNode = null;
+    let audioGainNode = null;
+    let audioCaptureNode = null;
+    let audioSourceNode = null;
+    let frequencyData = null;
+    let barMemory = [];
+    let energyState = { bass: 0, mid: 0, treble: 0, overall: 0, pulse: 0 };
+
     function setStatus(msg) {
       el.status.textContent = msg;
     }
@@ -474,6 +494,10 @@
       const mins = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
       return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
     }
 
     function updateSeekUi() {
@@ -493,6 +517,62 @@
       el.musicTime.textContent = `${formatTime(audio.currentTime)} / ${formatTime(duration)}`;
     }
 
+    function ensureAudioContext() {
+      if (audioCtx) return audioCtx;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+
+      audioCtx = new AudioContextClass();
+      analyserNode = audioCtx.createAnalyser();
+      analyserNode.fftSize = 512;
+      analyserNode.smoothingTimeConstant = 0.84;
+
+      audioGainNode = audioCtx.createGain();
+      audioCaptureNode = audioCtx.createMediaStreamDestination();
+
+      analyserNode.connect(audioGainNode);
+      audioGainNode.connect(audioCtx.destination);
+      audioGainNode.connect(audioCaptureNode);
+
+      frequencyData = new Uint8Array(analyserNode.frequencyBinCount);
+      return audioCtx;
+    }
+
+    async function resumeAudioContext() {
+      const ctxRef = ensureAudioContext();
+      if (!ctxRef) return;
+      if (ctxRef.state === 'suspended') {
+        try {
+          await ctxRef.resume();
+        } catch (err) {
+          console.warn(err);
+        }
+      }
+    }
+
+    function disconnectAudioSource() {
+      if (audioSourceNode) {
+        try {
+          audioSourceNode.disconnect();
+        } catch (err) {
+          console.warn(err);
+        }
+        audioSourceNode = null;
+      }
+      barMemory = [];
+      energyState = { bass: 0, mid: 0, treble: 0, overall: 0, pulse: 0 };
+    }
+
+    function attachAudioAnalysis(audio) {
+      const ctxRef = ensureAudioContext();
+      if (!ctxRef) return false;
+
+      disconnectAudioSource();
+      audioSourceNode = ctxRef.createMediaElementSource(audio);
+      audioSourceNode.connect(analyserNode);
+      return true;
+    }
+
     function clearMusic() {
       if (!audioLayer) return;
       const audio = audioLayer.element;
@@ -500,9 +580,20 @@
       audio.removeAttribute('src');
       audio.load();
       if (audioLayer.url) URL.revokeObjectURL(audioLayer.url);
+      disconnectAudioSource();
       audioLayer = null;
       updateSeekUi();
       el.playPauseBtn.textContent = running ? 'Pause' : 'Play';
+    }
+
+    function handlePlaybackEnded() {
+      running = false;
+      el.playPauseBtn.textContent = 'Play';
+      if (bgLayer && bgLayer.kind === 'video') bgLayer.element.pause();
+      if (mediaLayer && mediaLayer.kind === 'video') mediaLayer.element.pause();
+      updateSeekUi();
+      drawScene();
+      setStatus('Playback finished. Press Play to restart or scrub the track.');
     }
 
     function loadAudioFromFile(file) {
@@ -517,12 +608,15 @@
       audio.loop = false;
       audio.crossOrigin = 'anonymous';
 
-      audio.addEventListener('loadedmetadata', () => {
+      audio.addEventListener('loadedmetadata', async () => {
         audioLayer = { element: audio, url, name: file.name };
+        const analysisReady = attachAudioAnalysis(audio);
         updateSeekUi();
+
         if (running) {
+          await resumeAudioContext();
           audio.play().then(() => {
-            setStatus(`Music loaded: ${file.name}`);
+            setStatus(`Music loaded: ${file.name}${analysisReady ? ' — audio sync active.' : ''}`);
           }).catch(() => {
             setStatus(`Music loaded: ${file.name}. Press Play to hear it.`);
           });
@@ -533,12 +627,10 @@
 
       audio.addEventListener('timeupdate', updateSeekUi);
       audio.addEventListener('durationchange', updateSeekUi);
-      audio.addEventListener('ended', () => {
-        updateSeekUi();
-        el.playPauseBtn.textContent = 'Play';
-      });
+      audio.addEventListener('ended', handlePlaybackEnded);
       audio.addEventListener('error', () => {
         if (audioLayer && audioLayer.url) URL.revokeObjectURL(audioLayer.url);
+        disconnectAudioSource();
         audioLayer = null;
         updateSeekUi();
         setStatus(`Could not load music file: ${file.name}`);
@@ -638,8 +730,89 @@
       ctx.restore();
     }
 
+    function getFallbackBars(count) {
+      const bars = [];
+      for (let i = 0; i < count; i++) {
+        const wave = Math.abs(
+          Math.sin(t * 0.050 + i * 0.37) * 0.55 +
+          Math.sin(t * 0.027 + i * 0.19) * 0.30 +
+          Math.sin(t * 0.110 + i * 0.09) * 0.15
+        );
+        bars.push(wave);
+      }
+      return { bars, bass: 0.18, mid: 0.15, treble: 0.12, overall: 0.15, pulse: 0.12 };
+    }
+
+    function averageRange(startRatio, endRatio) {
+      if (!frequencyData || frequencyData.length === 0) return 0;
+      const start = Math.floor(frequencyData.length * startRatio);
+      const end = Math.max(start + 1, Math.floor(frequencyData.length * endRatio));
+      let total = 0;
+      let count = 0;
+      for (let i = start; i < end && i < frequencyData.length; i++) {
+        total += frequencyData[i];
+        count++;
+      }
+      return count ? total / count / 255 : 0;
+    }
+
+    function getAudioFrame(barCount, influence, smoothing) {
+      const audio = audioLayer && audioLayer.element;
+      const canAnalyse = analyserNode && frequencyData && audio && !audio.paused && !audio.ended;
+      if (!canAnalyse) {
+        return getFallbackBars(barCount);
+      }
+
+      analyserNode.smoothingTimeConstant = clamp(0.35 + smoothing * 0.6, 0.35, 0.97);
+      analyserNode.getByteFrequencyData(frequencyData);
+
+      const bassRaw = averageRange(0.01, 0.10);
+      const midRaw = averageRange(0.10, 0.35);
+      const trebleRaw = averageRange(0.35, 0.90);
+      const overallRaw = frequencyData.reduce((sum, value) => sum + value, 0) / (frequencyData.length * 255);
+
+      energyState.bass += (bassRaw - energyState.bass) * 0.22;
+      energyState.mid += (midRaw - energyState.mid) * 0.18;
+      energyState.treble += (trebleRaw - energyState.treble) * 0.16;
+      energyState.overall += (overallRaw - energyState.overall) * 0.16;
+      energyState.pulse += (Math.max(0, bassRaw - energyState.pulse) - energyState.pulse) * 0.22;
+
+      if (barMemory.length !== barCount) {
+        barMemory = new Array(barCount).fill(0);
+      }
+
+      const bars = [];
+      for (let i = 0; i < barCount; i++) {
+        const start = Math.floor((i / barCount) * frequencyData.length * 0.85);
+        const end = Math.max(start + 1, Math.floor(((i + 1) / barCount) * frequencyData.length * 0.85));
+        let total = 0;
+        let count = 0;
+        for (let j = start; j < end && j < frequencyData.length; j++) {
+          total += frequencyData[j];
+          count++;
+        }
+
+        const raw = count ? total / count / 255 : 0;
+        const shaped = Math.pow(raw, 0.85);
+        const mixed = shaped * influence + (0.18 + 0.18 * Math.sin(t * 0.035 + i * 0.22)) * (1 - influence);
+        const lerp = 0.10 + (1 - smoothing) * 0.22;
+        barMemory[i] += (mixed - barMemory[i]) * lerp;
+        bars.push(clamp(barMemory[i], 0, 1));
+      }
+
+      return {
+        bars,
+        bass: energyState.bass,
+        mid: energyState.mid,
+        treble: energyState.treble,
+        overall: energyState.overall,
+        pulse: energyState.pulse
+      };
+    }
+
     function drawBadge(cx, cy, radius, s) {
       const color = hexToRgb(s.waveColor);
+      const audioFrame = getAudioFrame(s.bars, s.audioInfluence / 100, s.audioSmooth / 100);
 
       drawMediaInsideCircle(
         mediaLayer,
@@ -655,8 +828,11 @@
       ctx.save();
       ctx.translate(cx, cy);
 
+      const ringPulse = 1 + audioFrame.bass * 0.16 + audioFrame.pulse * 0.22;
       ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},0.98)`;
-      ctx.lineWidth = s.ringThickness;
+      ctx.lineWidth = s.ringThickness * ringPulse;
+      ctx.shadowBlur = s.glow * (0.45 + audioFrame.overall * 0.7);
+      ctx.shadowColor = `rgba(${color.r},${color.g},${color.b},0.9)`;
       ctx.beginPath();
       ctx.arc(0, 0, radius, 0, Math.PI * 2);
       ctx.stroke();
@@ -667,7 +843,7 @@
       ctx.clip();
 
       const waveWidth = radius * (s.waveWidth / 100);
-      const waveHeight = radius * (s.waveHeight / 100);
+      const waveHeight = radius * (s.waveHeight / 100) * (1 + audioFrame.bass * 0.22);
       const spacing = waveWidth / s.bars;
       const centerY = radius * 0.18;
 
@@ -679,33 +855,28 @@
       fade.addColorStop(1, 'rgba(255,255,255,0)');
 
       const heights = [];
+      const motionBoost = 0.24 + (s.motion / 100) * 1.8;
 
       for (let i = 0; i < s.bars; i++) {
         const x = -waveWidth / 2 + spacing * (i + 0.5);
         const norm = i / Math.max(1, s.bars - 1);
-        const envelope = 0.45 + 0.55 * Math.sin(norm * Math.PI);
-
-        const a = Math.abs(
-          Math.sin(t * 0.050 + i * 0.37) * 0.55 +
-          Math.sin(t * 0.027 + i * 0.19) * 0.30 +
-          Math.sin(t * 0.110 + i * 0.09) * 0.15
-        );
-
-        const h = (0.08 + a * (s.motion / 100)) * waveHeight * envelope;
+        const envelope = 0.42 + 0.58 * Math.sin(norm * Math.PI);
+        const amplitude = audioFrame.bars[i] ?? 0;
+        const h = (0.08 + amplitude * motionBoost) * waveHeight * envelope;
         heights.push({ x, h });
 
         const dots = Math.max(2, Math.floor(h / 8));
         const dotGap = h / dots;
-        const r = Math.max(2.2, spacing * (s.dotSize / 100));
+        const r = Math.max(2.2, spacing * (s.dotSize / 100) * (1 + audioFrame.treble * 0.18));
 
         for (const side of [-1, 1]) {
           for (let j = 0; j < dots; j++) {
             const y = centerY + side * (j * dotGap + dotGap * 0.5);
-            const alpha = Math.max(0.12, 1 - (j / dots) * 0.7);
+            const alpha = Math.max(0.12, (1 - (j / dots) * 0.7) * (0.85 + audioFrame.overall * 0.5));
 
             ctx.beginPath();
             ctx.fillStyle = `rgba(${color.r},${color.g},${color.b},${alpha})`;
-            ctx.shadowBlur = s.glow;
+            ctx.shadowBlur = s.glow * (0.65 + audioFrame.overall * 0.85);
             ctx.shadowColor = `rgba(${color.r},${color.g},${color.b},0.95)`;
             ctx.arc(x, y, r, 0, Math.PI * 2);
             ctx.fill();
@@ -717,9 +888,9 @@
         ctx.globalCompositeOperation = 'screen';
         for (const item of heights) {
           ctx.beginPath();
-          ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},0.10)`;
+          ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},${0.10 + audioFrame.overall * 0.12})`;
           ctx.lineWidth = spacing * 0.7;
-          ctx.shadowBlur = s.glow + s.softness * 2;
+          ctx.shadowBlur = s.glow + s.softness * 2 + audioFrame.bass * 12;
           ctx.shadowColor = `rgba(${color.r},${color.g},${color.b},0.9)`;
           ctx.moveTo(item.x, centerY - item.h);
           ctx.lineTo(item.x, centerY + item.h);
@@ -734,17 +905,17 @@
         const index = i % heights.length;
         const base = heights[index];
         const delay = s.dustDelay / 100;
-        const localT = t * (0.015 + s.dustSpeed / 5000) - p.age * delay;
+        const localT = t * (0.015 + s.dustSpeed / 5000 + audioFrame.treble * 0.02) - p.age * delay;
 
-        const verticalSwing = Math.sin(localT + p.seed) * base.h * 0.25;
+        const verticalSwing = Math.sin(localT + p.seed) * base.h * (0.16 + audioFrame.mid * 0.18);
         const driftX = Math.cos(localT * 0.7 + p.seed) * (s.dustSpread * 0.35) + p.drift * 12;
         const driftY = Math.sin(localT * 1.2 + p.seed * 1.7) * (s.dustSpread * 0.18);
 
         const px = base.x + driftX;
         const py = centerY + verticalSwing + driftY;
 
-        const a = (s.dustAlpha / 100) * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(localT + p.seed)));
-        const size = s.dustSize * (0.55 + 0.8 * (0.5 + 0.5 * Math.sin(localT * 0.8 + p.seed)));
+        const a = (s.dustAlpha / 100) * (0.30 + 0.70 * (0.5 + 0.5 * Math.sin(localT + p.seed))) * (0.75 + audioFrame.treble * 0.65);
+        const size = s.dustSize * (0.55 + 0.8 * (0.5 + 0.5 * Math.sin(localT * 0.8 + p.seed))) * (0.8 + audioFrame.treble * 0.28);
         const rot = Math.sin(localT + p.seed) * 0.8;
 
         ctx.shadowBlur = s.glow * 0.8;
@@ -765,6 +936,8 @@
         bars: parseInt(el.bars.value, 10),
         glow: parseInt(el.glow.value, 10),
         motion: parseInt(el.motion.value, 10),
+        audioInfluence: parseInt(el.audioInfluence.value, 10),
+        audioSmooth: parseInt(el.audioSmooth.value, 10),
         waveWidth: parseInt(el.waveWidth.value, 10),
         waveHeight: parseInt(el.waveHeight.value, 10),
         dotSize: parseInt(el.dotSize.value, 10),
@@ -817,7 +990,7 @@
 
         video.addEventListener('loadedmetadata', async () => {
           try {
-            await video.play();
+            if (running) await video.play();
           } catch (err) {
             console.warn(err);
           }
@@ -904,11 +1077,13 @@
     function getSupportedMime(preferred) {
       const candidates = preferred === 'auto'
         ? [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
             'video/webm;codecs=vp9',
             'video/webm;codecs=vp8',
             'video/webm'
           ]
-        : [preferred, 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+        : [preferred, 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
 
       for (const mime of candidates) {
         if (window.MediaRecorder && MediaRecorder.isTypeSupported(mime)) {
@@ -916,6 +1091,20 @@
         }
       }
       return '';
+    }
+
+    function buildRecordingStream() {
+      const output = new MediaStream();
+      const videoTracks = canvas.captureStream(60).getVideoTracks();
+      videoTracks.forEach(track => output.addTrack(track));
+
+      if (audioCaptureNode && audioCaptureNode.stream) {
+        audioCaptureNode.stream.getAudioTracks().forEach(track => output.addTrack(track));
+      } else if (audioLayer && audioLayer.element && typeof audioLayer.element.captureStream === 'function') {
+        audioLayer.element.captureStream().getAudioTracks().forEach(track => output.addTrack(track));
+      }
+
+      return output;
     }
 
     function startRecording() {
@@ -935,13 +1124,14 @@
         return;
       }
 
-      stream = canvas.captureStream(60);
+      stream = buildRecordingStream();
       recordedChunks = [];
 
       try {
         recorder = new MediaRecorder(stream, {
           mimeType: currentMime,
-          videoBitsPerSecond: 12000000
+          videoBitsPerSecond: 12000000,
+          audioBitsPerSecond: 192000
         });
       } catch (err) {
         console.error(err);
@@ -987,7 +1177,7 @@
       recorder.start(200);
       el.startRecBtn.disabled = true;
       el.stopRecBtn.disabled = false;
-      setStatus(`Recording started with ${currentMime}.`);
+      setStatus(`Recording started with ${currentMime}.${stream.getAudioTracks().length ? ' Audio included.' : ' Video only.'}`);
     }
 
     function stopRecording() {
@@ -996,9 +1186,13 @@
       }
     }
 
-    function togglePlayPause() {
+    async function togglePlayPause() {
       running = !running;
       el.playPauseBtn.textContent = running ? 'Pause' : 'Play';
+
+      if (running) {
+        await resumeAudioContext();
+      }
 
       if (bgLayer && bgLayer.kind === 'video') {
         if (running) bgLayer.element.play().catch(() => {});
@@ -1023,6 +1217,7 @@
       updateSeekUi();
 
       if (running) frame();
+      else drawScene();
     }
 
     function drawScene() {
@@ -1105,5 +1300,6 @@
     cancelAnimationFrame(rafId);
     frame();
   </script>
+
 </body>
 </html>
