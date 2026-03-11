@@ -935,8 +935,9 @@
     if (!asset || !asset.ready) return;
     const srcW = asset.width, srcH = asset.height;
     if (!srcW || !srcH) return;
-    // Fit asset so it covers the visualizer diameter including some margin
-    const diameter = radius * 2 * (s.mediaScale / 100) * 1.08;
+    // s.mediaScale is already 0.0–2.0 (pre-divided in getSettings)
+    // s.mediaOpacity is raw 0–100 (not pre-divided)
+    const diameter = radius * 2 * s.mediaScale * 1.08;
     const aspect   = srcW / srcH;
     let dw, dh;
     if (aspect >= 1) { dw = diameter; dh = diameter / aspect; }
@@ -1477,6 +1478,10 @@
         url: null,
         isDefault: true
       };
+      setStatus('Default asset loaded. Load music to begin.');
+    };
+    img.onerror = () => {
+      setStatus('Default asset failed to load.');
     };
     img.src = ASSET_DEFAULT_SRC;
   }
@@ -1484,8 +1489,8 @@
   // ─── Init ─────────────────────────────────────────────────────────────────────
   resizeFromPreset();
   updateSeekUi(true);
-  loadDefaultMedia();
   cancelAnimationFrame(rafId);
+  loadDefaultMedia();   // async img load — mediaLayer will be set within first frames
   frame(performance.now());
 </script>
 </body>
