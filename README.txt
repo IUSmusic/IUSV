@@ -1,6 +1,6 @@
 IUS Visualizer
 
-https://iusmusic.github.io/iusv/
+https://iusmusic.github.io/IUSV/
 
 Standalone browser-based audio visualizer. 
 Renders a real-time circular visualizer driven by local audio. Frequency
