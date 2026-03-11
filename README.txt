@@ -1,166 +1,244 @@
-IUS Visualizer Preview v2
+IUS Visualizer
 
-IUS Visualizer renders a real-time circular visualizer synchronized to
-local audio using the Web Audio API's FFT analyser, the Canvas 2D API,
-and MediaRecorder for export.
-The following upgrades were applied:
-
-1. TRUE FFT AUDIO REACTIVITY
-   The waveform, ring, dots, bloom, dust particles, and color are now all
-   driven directly by the Web Audio API AnalyserNode. Every visual element
-   responds to the actual frequency content of the loaded audio in real time.
-   Previously, all motion was procedural (sine-based) and independent of audio.
-
-2. LOGARITHMIC FREQUENCY MAPPING
-   Bar heights are now distributed along a logarithmic frequency scale
-   rather than a linear one. This matches how human hearing perceives pitch,
-   producing much more musical and accurate visual representation — bass,
-   mid, and treble ranges each occupy proportional visual space.
-
-3. BEAT DETECTION
-   A rolling energy history is maintained to detect transients (beats).
-   When a beat is detected, particle emission spikes, the ring pulses, and
-   a subtle screen-wide flash fires. Beat sensitivity is user-controllable.
-
-4. DELTA-TIME ANIMATION LOOP
-   The animation loop now uses timestamp-based delta time instead of
-   assuming 60 fps. Motion speed is consistent regardless of frame rate or
-   display refresh rate (60Hz, 120Hz, etc.).
-
-5. MULTI-PASS BLOOM GLOW
-   A dedicated Bloom Intensity control adds a second blurred draw pass
-   behind bars and the ring, simulating soft bloom without WebGL.
-   The bloom strength scales with bass energy.
-
-6. AUDIO-REACTIVE HUE SHIFT
-   A Color Shift slider allows the wave color to rotate through the hue
-   spectrum as bass energy increases, producing dynamic chromatic breathing.
-
-7. BATCHED CANVAS DRAW CALLS
-   All dot arcs for a given frame are now batched into a single beginPath()
-   call before fill(), significantly reducing Canvas 2D state changes and
-   improving performance at high bar counts.
-
-8. THROTTLED SEEK UI
-   The seek bar and time readout are throttled to update no more than once
-   per 200ms, eliminating unnecessary DOM thrashing on every animation frame.
-
-9. LIVE ENERGY METERS
-   Three real-time horizontal meters (BASS / MID / HI) are displayed below
-   the seek bar, giving visual feedback on the audio signal being analysed.
-
-10. CONFIGURABLE FFT SIZE
-    A new FFT Size slider lets you switch between 256, 512, 1024, and 2048
-    bins. Higher values give finer frequency resolution; lower values are
-    more responsive and lighter on CPU.
-
-11. RING PULSE CONTROL
-    A dedicated Ring Pulse slider independently scales how much the ring
-    expands on bass hits, decoupled from general motion settings.
-
-12. LIVE VALUE READOUTS
-    Every control slider now shows its current value inline, removing the
-    need to hover or guess.
-
-13. SECTION HEADERS IN CONTROLS
-    Controls are grouped into labeled sections: Wave, Beat & Bloom, Dust,
-    and Layers — making the panel easier to navigate.
-
-14. REFINED UI TYPOGRAPHY
-    The interface uses Syne (display) and DM Mono (controls) for a more
-    considered visual identity, loaded from Google Fonts with a graceful
-    system font fallback.
+Standalone browser-based audio visualizer. Single HTML file. No build
+step, no server, no external dependencies. Open in a modern browser.
+Renders a real-time circular visualizer driven by local audio. Frequency
+analysis is performed via the Web Audio API AnalyserNode using FFT. All
+visual output is drawn to an HTML Canvas element using the Canvas 2D API.
+Recording is handled by MediaRecorder. All processing is client-side.
 
 
 INPUTS
 
-Music       — local audio file (MP3, WAV, M4A, AAC, OGG, FLAC)
-Media       — foreground artwork or video inside the circular mask
-Background  — full-frame image or video behind the visualizer
+Music       Local audio file. Accepted formats: MP3, WAV, M4A, AAC, OGG, FLAC.
+Media       Foreground image or video rendered inside the circular mask.
+Background  Full-frame image or video rendered behind the visualizer.
 
-Wave section:
-  Bars            — number of frequency bars (20–64)
-  Glow            — shadow glow intensity
-  Motion          — amplitude multiplier for bar height
-  Audio sync      — blend between FFT-driven and procedural motion (0–100)
-  Smoothing       — inter-frame frequency smoothing (higher = more buttery)
-  Wave width      — horizontal span of the waveform
-  Wave height     — maximum bar amplitude
-  Dot size        — radius of individual waveform dots
-  Softness        — softness of the glow column behind each bar
-  Fade edge       — width of the transparency fade at waveform edges
-  Ring thickness  — stroke width of the circular ring
-  Wave color      — base color (hue-shifted by Color Shift at runtime)
+Video inputs loop automatically and play muted. Audio plays through the
+Web Audio graph for analysis and is included in recordings.
 
-Beat & Bloom section:
-  Beat sensitivity  — threshold multiplier for beat detection (higher = more beats)
-  Bloom intensity   — strength of the multi-pass blur bloom effect
-  Color shift       — amount of hue rotation driven by bass energy (0 = none)
-  Ring pulse        — scale of ring expansion on bass/beat events
-  FFT size          — analyser resolution (256 / 512 / 1024 / 2048 bins)
 
-Dust section:
-  Amount, Delay/trail, Speed, Size, Spread, Brightness
-  — control the behaviour of floating wavelet dust particles
+CONTROLS
 
-Layers section:
-  Visualizer scale / X / Y   — position and size of the circular badge
-  Media scale / X / Y / opacity — foreground artwork inside circle
-  Background scale / X / Y / opacity — full-frame background layer
-  Canvas size — output resolution preset (1400×800 through 3840×2160)
+Bar style
+  Selects the visual form used to render frequency data. Eight options:
+
+  Dots          Stacked dot columns extending symmetrically above and
+                below the wave centre. Dot count, gap, and radius scale
+                with amplitude.
+
+  Classic bars  Solid filled rectangles, symmetric up and down. Bar width
+                is proportional to spacing.
+
+  Mirror bars   Gradient-filled bars. Fully opaque at centre, transparent
+                at tips. Amplitude controls gradient extent.
+
+  Neon tubes    Two-pass stroke render. A narrow fully opaque inner line
+                sits inside a wide soft halo. Glow and Bloom amplify the
+                halo. Responds strongly to Softness.
+
+  Radial circle Bars radiate outward from the centre of the circle. Each
+                bar has an individual gradient from transparent at root to
+                opaque at tip. Does not use the inner clip or edge fade.
+
+  Arc burst     Arcs arranged around the ring circumference. Each arc
+                spans and thickens proportionally to its frequency bin
+                amplitude. Does not use the inner clip or edge fade.
+
+  Ribbon wave   Bezier-smoothed filled shape. Upper and lower curves are
+                drawn as a single closed path. Produces a fluid, organic
+                waveform. Edge fade applies.
+
+  Stacked blocks  Square tiles stacked above and below centre. Stack
+                height scales with amplitude. Top block receives strongest
+                glow.
+
+Wave — Bars
+  Number of frequency bins mapped to visual bars. Range: 20–64.
+
+Wave — Glow
+  Shadow blur radius applied to bars and ring. Higher values produce
+  stronger ambient glow.
+
+Wave — Motion
+  Amplitude multiplier for bar height. Higher values produce taller bars.
+
+Wave — Audio sync
+  Blend between FFT-driven amplitude and procedural sine motion.
+  100 = fully audio-driven. 0 = fully procedural.
+
+Wave — Smoothing
+  Inter-frame lerp applied to bar memory. Higher values produce slower,
+  smoother transitions between frames.
+
+Wave — Wave width
+  Horizontal span of the waveform relative to the ring radius.
+
+Wave — Wave height
+  Maximum bar amplitude relative to the ring radius. Scales with bass
+  energy at runtime.
+
+Wave — Wave Y offset
+  Vertical offset of the wave centre within the circle. 0 = geometrically
+  centred. Positive values move the wave down.
+
+Wave — Dot size
+  Radius of individual dots in the Dots style. Also affects treble
+  responsiveness of dot scaling.
+
+Wave — Softness
+  Applies a blurred screen-composite pass behind each bar. Increases
+  perceived softness and ambient light.
+
+Wave — Fade edge
+  Width of the transparency fade at the left and right edges of the
+  waveform. Does not apply to radial styles.
+
+Wave — Ring thickness
+  Stroke width of the outer circular ring. Scales with bass pulse.
+
+Wave — Wave color
+  Base color for all visual elements. Hue is shifted at runtime if
+  Color shift is greater than zero.
+
+Beat & Bloom — Beat sensitivity
+  Detection threshold multiplier. Higher values register more beats.
+  Detection uses a rolling 43-frame energy history against a dynamic
+  average.
+
+Beat & Bloom — Bloom intensity
+  Strength of the secondary blurred draw pass applied to the ring and
+  bars. Simulates optical bloom without WebGL. Scales with bass energy.
+
+Beat & Bloom — Color shift
+  Maximum hue rotation applied to the wave color, driven by bass energy.
+  0 = no shift. 100 = full hue cycle at peak bass.
+
+Beat & Bloom — Ring pulse
+  Scale of ring radius expansion on bass and beat events. 0 = no pulse.
+
+Beat & Bloom — FFT size
+  AnalyserNode FFT resolution. Options: 256, 512, 1024, 2048 bins.
+  Higher values improve frequency resolution. Lower values improve
+  temporal responsiveness and reduce CPU cost.
+
+Dust — Amount
+  Number of floating wavelet particles rendered per frame.
+
+Dust — Delay / trail
+  Phase offset between particles. Higher values spread particle motion
+  across time, producing a trailing effect.
+
+Dust — Speed
+  Rate at which particle position advances along its motion path.
+
+Dust — Size
+  Base size of each wavelet particle shape.
+
+Dust — Spread
+  Horizontal and vertical drift range of particles from their anchor bar.
+
+Dust — Brightness
+  Alpha multiplier for particle opacity.
+
+Layers — Visualizer scale / X / Y
+  Scale and canvas position of the entire circular badge.
+
+Layers — Media scale / X / Y / Opacity
+  Scale, position, and opacity of the foreground media layer inside the
+  circle.
+
+Layers — Background scale / X / Y / Opacity
+  Scale, position, and opacity of the background layer.
+
+Layers — Canvas size
+  Output resolution. Presets: 700x400, 1400x800, 1920x1080, 1080x1080,
+  1080x1920, 3840x2160. Changing this resets the canvas immediately.
 
 
 RECORDING
-Click "Record" to begin capturing the canvas at 60 FPS via MediaRecorder.
-Audio is included in the recording when available (Web Audio routing).
-Click "Stop" to download the result as a WebM file.
-Codec preference can be selected from the dropdown (VP9 recommended).
-Video bitrate: 12 Mbps. Audio bitrate: 192 kbps.
+Click Record to begin canvas capture at 60 FPS via MediaRecorder.
+Click Stop to end capture and download the result as a WebM file.
+Audio captured through the Web Audio graph is included in the recording
+when available. Video bitrate: 12 Mbps. Audio bitrate: 192 kbps.
+Codec can be selected from the dropdown. VP9 is recommended.
 
 
-RENDERING PIPELINE (each frame)
-1. Clear canvas
-2. Draw background asset (fitted, scaled, offset)
-3. Compute visualizer centre point and radius
-4. Read FFT data from AnalyserNode; apply log-scale bin mapping
-5. Compute energy bands (bass, mid, treble, overall, pulse)
-6. Run beat detection against rolling energy history
-7. Draw foreground media clipped to inner circle
-8. Draw bloom pass (blurred ring) if bloom > 0
-9. Draw ring with glow, scaled by bass pulse
-10. Batch-draw waveform dots (single fill call per bar)
-11. Draw softness / bloom column pass (screen composite)
-12. Draw dust particles (wavelet shapes)
-13. Apply edge fade mask (destination-in)
+RENDERING PIPELINE
+Each animation frame executes the following sequence:
+
+1.  Clear canvas.
+2.  Draw background asset, fitted and scaled.
+3.  Compute visualizer centre point and radius.
+4.  Read FFT byte frequency data from AnalyserNode.
+5.  Apply logarithmic bin mapping across bars.
+6.  Compute smoothed energy bands: bass, mid, treble, overall, pulse.
+7.  Run beat detection against rolling energy history.
+8.  Update live energy meters in the UI (throttled).
+9.  Draw foreground media clipped to inner circle.
+10. Draw bloom pass (blurred ring stroke) if bloom > 0.
+11. Draw ring with glow shadow, scaled by bass pulse.
+12. Compute per-bar heights from frequency data.
+13. Dispatch to selected bar style renderer.
+14. Draw softness / bloom column pass using screen composite.
+15. Draw dust wavelet particles.
+16. Apply edge fade mask using destination-in composite.
+17. Restore canvas transform state.
+
+
+AUDIO GRAPH
+MediaElementSource -> AnalyserNode -> GainNode -> AudioContext.destination
+                                               -> MediaStreamDestination
+
+The MediaStreamDestination output is used to capture audio into the
+recording stream. The GainNode is present for gain staging. The
+AnalyserNode reads frequency and time-domain data each frame.
+
+
+PERFORMANCE NOTES
+- Bar count, particle count, bloom blur, and canvas resolution are the
+  primary performance variables. Reduce these if frame rate drops.
+- Bloom uses CSS filter blur on the Canvas 2D context. Cost scales with
+  canvas resolution. Disable bloom at 3840x2160 unless hardware allows.
+- Draw calls are batched where possible. Dot arcs per frame share a
+  single beginPath / fill pair.
+- Seek UI DOM updates are throttled to one write per 200ms.
+- Animation uses delta-time scaling so motion is frame-rate independent.
 
 
 BROWSER REQUIREMENTS
-A modern Chromium-based browser is strongly recommended.
+Chromium-based browser strongly recommended.
+
 Required APIs:
   Canvas 2D API
-  Web Audio API (AudioContext, AnalyserNode, MediaElementSourceNode)
-  HTML audio/video playback
+  Web Audio API (AudioContext, AnalyserNode, MediaElementSourceNode,
+                 GainNode, MediaStreamDestination)
+  HTMLAudioElement / HTMLVideoElement
   URL.createObjectURL()
   requestAnimationFrame()
-  MediaRecorder + canvas.captureStream()
+  MediaRecorder
+  canvas.captureStream()
 
 
 INSTALLATION
-1. Download iusv_upgraded.html
-2. Open it directly in a modern browser (no server required)
-3. Load a music file
-4. Optionally load a foreground media or background asset
-5. Adjust controls
-6. Record output if needed
+1. Download iusv.html.
+2. Open directly in a modern browser. No server required.
+3. Load a music file.
+4. Optionally load a media file and a background file.
+5. Select a bar style and adjust controls.
+6. Click Record to capture output.
 
 
 KNOWN LIMITATIONS
-- Recording output is limited to browser-supported WebM codecs
-- Browser autoplay policy may require a manual Play press after loading audio
-- Performance scales with canvas size, bar count, particle count, and bloom blur
-- The bloom filter uses CSS blur which can be expensive at large canvas sizes;
-  reduce bloom or use a lower canvas preset if frame rate drops
-- Audio from MediaElementSource requires crossOrigin = "anonymous" on the element;
-  local file loading handles this correctly by construction
+- Recording is limited to WebM container with VP8 or VP9 video codec.
+- Browser autoplay policy may block audio on first load. Press Play.
+- Bloom blur cost increases with canvas resolution.
+- Audio source connection via createMediaElementSource is one-time per
+  element. Clearing and reloading music creates a new source node.
+- Local file loading sets crossOrigin to anonymous by construction.
+  Remote URLs may require appropriate CORS headers.
 
-MIT — see LICENSE file
+
+LICENSE
+
+MIT
