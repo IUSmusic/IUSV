@@ -21,8 +21,8 @@
       --panel: rgba(255,255,255,0.04);
       --panel-border: rgba(255,255,255,0.08);
       --muted: rgba(255,255,255,0.55);
-      --accent: #a78bfa;
-      --accent2: #38bdf8;
+      --accent: #000000;
+      --accent2: #444444;
       --font-ui: 'DM Mono', monospace;
       --font-display: 'Syne', sans-serif;
     }
@@ -68,7 +68,7 @@
       font-size: 20px;
       font-weight: 800;
       letter-spacing: -0.02em;
-      background: linear-gradient(90deg, #fff 40%, var(--accent));
+      background: linear-gradient(90deg, #fff 60%, #aaaaaa);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -152,9 +152,9 @@
       transition: width 0.05s linear;
     }
 
-    .em-bass .energy-meter-fill { background: var(--accent); }
-    .em-mid  .energy-meter-fill { background: var(--accent2); }
-    .em-hi   .energy-meter-fill { background: #4ade80; }
+    .em-bass .energy-meter-fill { background: #ffffff; }
+    .em-mid  .energy-meter-fill { background: #aaaaaa; }
+    .em-hi   .energy-meter-fill { background: #666666; }
 
     .energy-label {
       font-size: 9px;
@@ -225,7 +225,7 @@
     }
 
     /* Stage */
-    .stage-panel { padding: 8px; width: 100%; max-width: 800px; margin: 0 auto; }
+    .stage-panel { padding: 8px; width: 82%; margin: 0 auto; }
 
     .stage-wrap {
       width: 100%;
@@ -237,11 +237,11 @@
       background-size: 20px 20px;
       background-position: 0 0, 10px 10px;
       padding: 8px;
-      max-height: 40vh;
+      max-height: 56vh;
     }
 
     .stage-wrap canvas {
-      max-height: 40vh;
+      max-height: 44vh;
       object-fit: contain;
     }
 
@@ -265,7 +265,7 @@
       position: fixed;
       inset: 0;
       pointer-events: none;
-      background: radial-gradient(ellipse at center, rgba(167,139,250,0.07) 0%, transparent 70%);
+      background: radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, transparent 70%);
       opacity: 0;
       transition: opacity 0.08s;
       z-index: 9999;
@@ -341,7 +341,7 @@
         <!-- Preview canvas -->
         <div class="panel stage-panel">
           <div class="stage-wrap">
-            <canvas id="c" width="800" height="450"></canvas>
+            <canvas id="c" width="700" height="400"></canvas>
           </div>
           <div class="hint">
             Canvas 2D · Web Audio FFT · MediaRecorder · Standalone HTML
@@ -392,13 +392,6 @@
         </label>
         <label>Wave color
           <input id="waveColor" type="color" value="#ffffff">
-        </label>
-        <label>Bar type
-          <select id="barType">
-            <option value="dots" selected>Dots</option>
-            <option value="bars">Bars</option>
-            <option value="neon">Neon</option>
-          </select>
         </label>
 
         <div class="ctrl-section">— Beat &amp; Bloom</div>
@@ -477,7 +470,7 @@
         </label>
         <label>Canvas size
           <select id="canvasPreset">
-            <option value="800x450" selected>800 × 450</option>
+            <option value="700x400" selected>700 × 400</option>
             <option value="1400x800">1400 × 800</option>
             <option value="1920x1080">1920 × 1080</option>
             <option value="1080x1080">1080 × 1080</option>
@@ -499,7 +492,7 @@
   const el = {};
   [
     'bars','glow','motion','audioInfluence','audioSmooth','waveWidth','waveHeight','waveOffsetY',
-    'dotSize','softness','fadeEdge','ringThickness','waveColor','barType',
+    'dotSize','softness','fadeEdge','ringThickness','waveColor',
     'beatSensitivity','bloom','colorShift','ringPulse','fftSize',
     'dustAmount','dustDelay','dustSpeed','dustSize','dustSpread','dustAlpha',
     'vizScale','vizOffsetX','vizOffsetY',
@@ -585,7 +578,7 @@
 
   function formatTime(s) {
     if (!Number.isFinite(s) || s < 0) return '00:00';
-    return `\( {String(Math.floor(s/60)).padStart(2,'0')}: \){String(Math.floor(s%60)).padStart(2,'0')}`;
+    return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
   }
 
   function hexToRgb(hex) {
@@ -744,7 +737,7 @@
       if (running) {
         await resumeAudioContext();
         audio.play().then(() => {
-          setStatus(`Music: \( {file.name} \){ok ? ' — FFT active' : ''}`);
+          setStatus(`Music: ${file.name}${ok ? ' — FFT active' : ''}`);
         }).catch(() => {
           setStatus(`Music loaded: ${file.name}. Press Play.`);
         });
@@ -871,7 +864,7 @@
     ctx.moveTo(-size, 0);
     ctx.quadraticCurveTo(-size * 0.35, -size * 0.85, 0, 0);
     ctx.quadraticCurveTo(size * 0.35, size * 0.85, size, 0);
-    ctx.strokeStyle = `rgba(\( {color.r}, \){color.g},\( {color.b}, \){alpha})`;
+    ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},${alpha})`;
     ctx.lineWidth = Math.max(1.2, size * 0.22);
     ctx.lineCap = 'round';
     ctx.stroke();
@@ -943,7 +936,7 @@
     if (s.bloom > 0) {
       ctx.save();
       ctx.filter = `blur(${Math.round(s.bloom * 0.18)}px)`;
-      ctx.strokeStyle = `rgba(\( {color.r}, \){color.g},${color.b},0.35)`;
+      ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},0.35)`;
       ctx.lineWidth = s.ringThickness * ringPulse * 1.6;
       ctx.beginPath();
       ctx.arc(0, 0, radius, 0, Math.PI * 2);
@@ -952,16 +945,16 @@
       ctx.restore();
     }
 
-    ctx.strokeStyle = `rgba(\( {color.r}, \){color.g},${color.b},0.98)`;
+    ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},0.98)`;
     ctx.lineWidth = s.ringThickness * ringPulse;
     ctx.shadowBlur = ringGlow;
-    ctx.shadowColor = `rgba(\( {color.r}, \){color.g},${color.b},0.9)`;
+    ctx.shadowColor = `rgba(${color.r},${color.g},${color.b},0.9)`;
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // ── Wave + bars/dots/neon (clipped to inner circle) ──────────────────────
+    // ── Wave + dots (clipped to inner circle) ────────────────────────────────
     ctx.save();
     ctx.beginPath();
     ctx.arc(0, 0, radius * 0.86, 0, Math.PI * 2);
@@ -984,9 +977,9 @@
     const heights = [];
     const glowVal = s.glow * (0.65 + audioFrame.overall * 0.85);
 
-    // Draw bars based on type
+    // Batch dots: group by shadow settings to reduce state changes
     ctx.shadowBlur = glowVal;
-    ctx.shadowColor = `rgba(\( {color.r}, \){color.g},${color.b},0.95)`;
+    ctx.shadowColor = `rgba(${color.r},${color.g},${color.b},0.95)`;
 
     for (let i = 0; i < s.bars; i++) {
       const x = -waveWidth/2 + spacing * (i + 0.5);
@@ -996,44 +989,21 @@
       const h = (0.08 + amplitude * motionBoost) * waveHeight * envelope;
       heights.push({ x, h });
 
-      if (s.barType === 'dots') {
-        const dots = Math.max(2, Math.floor(h / 8));
-        const dotGap = h / dots;
-        const r = Math.max(2.2, spacing * (s.dotSize / 100) * (1 + audioFrame.treble * 0.18));
+      const dots = Math.max(2, Math.floor(h / 8));
+      const dotGap = h / dots;
+      const r = Math.max(2.2, spacing * (s.dotSize / 100) * (1 + audioFrame.treble * 0.18));
 
-        ctx.beginPath();
-        for (const side of [-1, 1]) {
-          for (let j = 0; j < dots; j++) {
-            const dy = centerY + side * (j * dotGap + dotGap * 0.5);
-            const alpha = Math.max(0.12, (1 - (j / dots) * 0.7) * (0.85 + audioFrame.overall * 0.5));
-            ctx.fillStyle = `rgba(\( {color.r}, \){color.g},\( {color.b}, \){alpha})`;
-            ctx.moveTo(x + r, dy);
-            ctx.arc(x, dy, r, 0, Math.PI * 2);
-          }
+      ctx.beginPath();
+      for (const side of [-1, 1]) {
+        for (let j = 0; j < dots; j++) {
+          const dy = centerY + side * (j * dotGap + dotGap * 0.5);
+          const alpha = Math.max(0.12, (1 - (j / dots) * 0.7) * (0.85 + audioFrame.overall * 0.5));
+          ctx.fillStyle = `rgba(${color.r},${color.g},${color.b},${alpha})`;
+          ctx.moveTo(x + r, dy);
+          ctx.arc(x, dy, r, 0, Math.PI * 2);
         }
-        ctx.fill();
-      } else if (s.barType === 'bars') {
-        const barWidth = spacing * 0.8;
-        const alpha = 0.85 + audioFrame.overall * 0.5;
-        ctx.fillStyle = `rgba(\( {color.r}, \){color.g},\( {color.b}, \){alpha})`;
-        ctx.fillRect(x - barWidth / 2, centerY - h, barWidth, h * 2);
-      } else if (s.barType === 'neon') {
-        const barWidth = spacing * 0.6;
-        ctx.strokeStyle = `rgba(\( {color.r}, \){color.g},${color.b},0.9)`;
-        ctx.lineWidth = barWidth;
-        ctx.shadowBlur = glowVal * 2;
-        ctx.beginPath();
-        ctx.moveTo(x, centerY - h);
-        ctx.lineTo(x, centerY + h);
-        ctx.stroke();
-        // Extra glow layers for neon effect
-        ctx.shadowBlur = glowVal * 4;
-        ctx.strokeStyle = `rgba(\( {color.r}, \){color.g},${color.b},0.3)`;
-        ctx.stroke();
-        ctx.shadowBlur = glowVal * 8;
-        ctx.strokeStyle = `rgba(\( {color.r}, \){color.g},${color.b},0.1)`;
-        ctx.stroke();
       }
+      ctx.fill();
     }
 
     ctx.shadowBlur = 0;
@@ -1043,10 +1013,10 @@
       ctx.globalCompositeOperation = 'screen';
       const blurAmt = Math.round(s.softness * 1.5 + (s.bloom / 100) * 8 + audioFrame.bass * 6);
       if (blurAmt > 0) ctx.filter = `blur(${blurAmt}px)`;
-      ctx.strokeStyle = `rgba(\( {color.r}, \){color.g},\( {color.b}, \){0.10 + audioFrame.overall * 0.14})`;
+      ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},${0.10 + audioFrame.overall * 0.14})`;
       ctx.lineWidth = spacing * 0.7;
       ctx.shadowBlur = s.glow + s.softness * 2 + audioFrame.bass * 12;
-      ctx.shadowColor = `rgba(\( {color.r}, \){color.g},${color.b},0.9)`;
+      ctx.shadowColor = `rgba(${color.r},${color.g},${color.b},0.9)`;
 
       // Batched path for all vertical bar glows
       ctx.beginPath();
@@ -1064,7 +1034,7 @@
     // ── Dust / particles ─────────────────────────────────────────────────────
     ensureParticles(s.dustAmount);
     ctx.shadowBlur = s.glow * 0.8;
-    ctx.shadowColor = `rgba(\( {color.r}, \){color.g},${color.b},0.85)`;
+    ctx.shadowColor = `rgba(${color.r},${color.g},${color.b},0.85)`;
 
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
@@ -1112,7 +1082,6 @@
       fadeEdge:        parseInt(el.fadeEdge.value, 10),
       ringThickness:   parseInt(el.ringThickness.value, 10) / 10,
       waveColor:       el.waveColor.value,
-      barType:         el.barType.value,
       beatSensitivity: parseInt(el.beatSensitivity.value, 10),
       bloom:           parseInt(el.bloom.value, 10),
       colorShift:      parseInt(el.colorShift.value, 10),
