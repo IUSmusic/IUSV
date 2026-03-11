@@ -22,7 +22,6 @@
       --panel-border: rgba(255,255,255,0.08);
       --muted: rgba(255,255,255,0.55);
       --accent: #000000;
-      --accent2: #444444;
       --font-ui: 'DM Mono', monospace;
       --font-display: 'Syne', sans-serif;
     }
@@ -215,7 +214,7 @@
 
     input[type="color"] {
       width: 100%;
-      height: 22px;
+      height: 28px;
       border: none;
       background: transparent;
       padding: 0;
@@ -235,11 +234,6 @@
       background-position: 0 0, 10px 10px;
       padding: 8px;
       max-height: 56vh;
-    }
-
-    .stage-wrap canvas {
-      max-height: 44vh;
-      object-fit: contain;
     }
 
     canvas {
@@ -340,7 +334,7 @@
         </div>
       </div>
 
-      <!-- Right column: controls (media section removed) -->
+      <!-- Right column: controls -->
       <div class="controls">
 
         <div class="ctrl-section">— Wave</div>
@@ -448,7 +442,6 @@
         <label><span>Viz Y <em id="vVizOffsetY">0</em></span>
           <input id="vizOffsetY" type="range" min="-300" max="300" step="1" value="0">
         </label>
-
         <label><span>BG scale <em id="vBgScale">100</em></span>
           <input id="bgScale" type="range" min="20" max="250" step="1" value="100">
         </label>
@@ -482,7 +475,7 @@
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: false });
 
-  // ─── DOM element map (media removed) ────────────────────────────────────────
+  // ─── DOM element map ─────────────────────────────────────────────────────────
   const el = {};
   [
     'barStyle','bars','glow','motion','audioInfluence','audioSmooth','waveWidth','waveHeight','waveOffsetY',
@@ -536,7 +529,7 @@
   let t = 0;
   let lastTimestamp = 0;
   let particles = [];
-  let running = true;
+  let running = true;           // audio playing state
   let rafId = 0;
 
   let bgLayer = null;
@@ -563,7 +556,6 @@
   let beatHistory = [];
   const BEAT_HISTORY_LEN = 43;
   let lastBeatTime = 0;
-  let isBeat = false;
   let beatFlashTimeout = null;
 
   // ─── Utility ─────────────────────────────────────────────────────────────────
@@ -575,9 +567,14 @@
     return `\( {String(Math.floor(s/60)).padStart(2,'0')}: \){String(Math.floor(s%60)).padStart(2,'0')}`;
   }
 
+  // FIXED: Safer hexToRgb with fallback to white
   function hexToRgb(hex) {
-    const n = parseInt(hex.replace('#',''), 16);
-    return { r: (n>>16)&255, g: (n>>8)&255, b: n&255 };
+    if (!hex || typeof hex !== 'string') return { r: 255, g: 255, b: 255 };
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const n = parseInt(hex, 16);
+    if (isNaN(n)) return { r: 255, g: 255, b: 255 };
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
   }
 
   function shiftHue(rgb, deg) {
@@ -686,9 +683,7 @@
     try {
       audioSourceNode = c.createMediaElementSource(audio);
       audioSourceNode.connect(analyserNode);
-    } catch(e) {
-      console.warn('Audio source connect:', e);
-    }
+    } catch(e) { console.warn('Audio source connect:', e); }
     return true;
   }
 
@@ -709,7 +704,6 @@
     el.playPauseBtn.textContent = 'Play';
     if (bgLayer?.kind === 'video') bgLayer.element.pause();
     updateSeekUi(true);
-    drawScene();
     setStatus('Playback finished.');
   }
 
@@ -876,7 +870,6 @@
     ctx.restore();
   }
 
-  // ─── Particles ────────────────────────────────────────────────────────────────
   function ensureParticles(count) {
     while (particles.length < count) {
       particles.push({ seed: Math.random() * 1000, age: Math.random() * 100, drift: Math.random() * 2 - 1 });
@@ -884,29 +877,28 @@
     if (particles.length > count) particles.length = count;
   }
 
-  // ─── Main badge renderer (NO CIRCLE CLIP + NO MEDIA OVERLAY) ─────────────────
-  function drawBadge(cx, cy, radius, s, dt) {
-    const baseColor = hexToRgb(s.waveColor);
-    const audioFrame = getAudioFrame(s.bars, s.audioInfluence / 100, s.audioSmooth / 100, s.beatSensitivity / 100);
-
+  // ─── Main badge renderer (no circle) ────────────────────────────────────────
+  function drawBadge(cx, cy, radius, s) {
+    const baseColor = hexToRgb(s.waveColor);                     // now always safe
     const hueShift = (s.colorShift / 100) * 360 * energyState.bass;
     const color = shiftHue(baseColor, hueShift);
+    const rgba = (a) => `rgba(\( {color.r}, \){color.g},\( {color.b}, \){a})`;
 
     ctx.save();
     ctx.translate(cx, cy);
 
     const ringPulseAmt = s.ringPulse / 100;
-    const ringPulse = 1 + audioFrame.bass * 0.16 * ringPulseAmt + audioFrame.pulse * 0.26 * ringPulseAmt;
+    const ringPulse = 1 + (getAudioFrame(1,0,0,0).bass || 0) * 0.16 * ringPulseAmt; // dummy for pulse
 
     const waveWidth   = radius * (s.waveWidth / 100);
-    const waveHeight  = radius * (s.waveHeight / 100) * (1 + audioFrame.bass * 0.24);
+    const waveHeight  = radius * (s.waveHeight / 100) * (1 + (getAudioFrame(1,0,0,0).bass || 0) * 0.24);
     const spacing     = waveWidth / s.bars;
     const centerY     = s.waveOffsetY;
     const motionBoost = 0.24 + (s.motion / 100) * 1.8;
-    const glowVal     = s.glow * (0.65 + audioFrame.overall * 0.85);
-    const rgba        = (a) => `rgba(\( {color.r}, \){color.g},\( {color.b}, \){a})`;
+    const glowVal     = s.glow * (0.65 + (getAudioFrame(1,0,0,0).overall || 0) * 0.85);
 
     const heights = [];
+    const audioFrame = getAudioFrame(s.bars, s.audioInfluence / 100, s.audioSmooth / 100, s.beatSensitivity / 100);
     for (let i = 0; i < s.bars; i++) {
       const norm      = i / Math.max(1, s.bars - 1);
       const envelope  = 0.42 + 0.58 * Math.sin(norm * Math.PI);
@@ -916,12 +908,10 @@
     }
 
     const isRadial = (s.barStyle === 'circle' || s.barStyle === 'arc');
-    // REMOVED CIRCULAR CLIP ENTIRELY - visuals now draw full on background
 
     ctx.shadowBlur  = glowVal;
     ctx.shadowColor = rgba(0.95);
 
-    // ══ BAR STYLE DISPATCHER (same as original) ═══════════════════════════════
     if (s.barStyle === 'dots') {
       const dotR = Math.max(2.2, spacing * (s.dotSize / 100) * (1 + audioFrame.treble * 0.18));
       ctx.beginPath();
@@ -938,7 +928,6 @@
         }
       }
       ctx.fill();
-
     } else if (s.barStyle === 'classic') {
       const bw = spacing * 0.72;
       for (const { x, h } of heights) {
@@ -947,7 +936,6 @@
         ctx.fillRect(x - bw/2, centerY - h, bw, h);
         ctx.fillRect(x - bw/2, centerY,     bw, h);
       }
-
     } else if (s.barStyle === 'mirror') {
       const bw = spacing * 0.65;
       for (const { x, h } of heights) {
@@ -960,7 +948,6 @@
         ctx.fillStyle = grad;
         ctx.fillRect(x - bw/2, centerY - h, bw, h * 2);
       }
-
     } else if (s.barStyle === 'neon') {
       const lw = Math.max(2, spacing * 0.45);
       ctx.lineCap = 'round';
@@ -983,7 +970,6 @@
       }
       ctx.stroke();
       ctx.lineCap = 'butt';
-
     } else if (s.barStyle === 'circle') {
       ctx.save();
       const innerR  = radius * 0.18;
@@ -1012,7 +998,6 @@
         ctx.stroke();
       }
       ctx.restore();
-
     } else if (s.barStyle === 'arc') {
       ctx.save();
       const arcR    = radius * 0.55;
@@ -1033,7 +1018,6 @@
         ctx.stroke();
       }
       ctx.restore();
-
     } else if (s.barStyle === 'ribbon') {
       const topPts = heights.map(({ x, h }) => ({ x, y: centerY - h }));
       const botPts = heights.map(({ x, h }) => ({ x, y: centerY + h }));
@@ -1060,7 +1044,6 @@
       }
       ctx.closePath();
       ctx.fill();
-
     } else if (s.barStyle === 'blocks') {
       const bw        = spacing * 0.68;
       const blockSize = Math.max(3, bw * 0.85);
@@ -1149,7 +1132,7 @@
       softness:        parseInt(el.softness.value, 10),
       fadeEdge:        parseInt(el.fadeEdge.value, 10),
       ringThickness:   parseInt(el.ringThickness.value, 10) / 10,
-      waveColor:       el.waveColor.value,
+      waveColor:       el.waveColor.value || '#ffffff',
       beatSensitivity: parseInt(el.beatSensitivity.value, 10),
       bloom:           parseInt(el.bloom.value, 10),
       colorShift:      parseInt(el.colorShift.value, 10),
@@ -1185,18 +1168,16 @@
     const cx = canvas.width / 2 + s.vizOffsetX;
     const cy = canvas.height / 2 + s.vizOffsetY;
 
-    drawBadge(cx, cy, radius, s, dt);
+    drawBadge(cx, cy, radius, s);
   }
 
-  // ─── Animation loop ──────────────────────────────────────────────────────────
+  // ─── Animation loop (ALWAYS runs for live controls) ──────────────────────────
   function frame(timestamp) {
     const dt = lastTimestamp ? Math.min((timestamp - lastTimestamp) / 16.667, 3) : 1;
     lastTimestamp = timestamp;
 
     drawScene(dt);
-    if (!running) return;
-
-    t += dt;
+    t += dt;                               // always advance for fallback animation
     rafId = requestAnimationFrame(frame);
   }
 
@@ -1205,7 +1186,7 @@
     setFftSize(+el.fftSize.value);
   });
 
-  // ─── Asset loading (only background now) ─────────────────────────────────────
+  // ─── Asset loading ───────────────────────────────────────────────────────────
   function resizeFromPreset() {
     const [w, h] = el.canvasPreset.value.split('x').map(Number);
     canvas.width = w; canvas.height = h;
@@ -1246,7 +1227,7 @@
     bgLayer = null;
   }
 
-  // ─── Recording (unchanged) ───────────────────────────────────────────────────
+  // ─── Recording ───────────────────────────────────────────────────────────────
   function getSupportedMime(preferred) {
     const candidates = preferred === 'auto'
       ? ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']
@@ -1302,7 +1283,7 @@
     running = !running;
     el.playPauseBtn.textContent = running ? 'Pause' : 'Play';
     if (running) await resumeAudioContext();
-    if (bgLayer?.kind === 'video') { running ? bgLayer.element.play().catch(()=>{}) : bgLayer.element.pause(); }
+    if (bgLayer?.kind === 'video')    { running ? bgLayer.element.play().catch(()=>{}) : bgLayer.element.pause(); }
     if (audioLayer?.element) {
       if (running) {
         audioLayer.element.play().catch(() => setStatus('Press Play again — browser blocked autoplay.'));
@@ -1311,8 +1292,6 @@
       }
     }
     updateSeekUi(true);
-    if (running) { lastTimestamp = 0; frame(performance.now()); }
-    else drawScene(1);
   }
 
   // ─── Event wiring ─────────────────────────────────────────────────────────────
@@ -1326,6 +1305,11 @@
   el.startRecBtn.addEventListener('click', startRecording);
   el.stopRecBtn.addEventListener('click',  stopRecording);
   el.canvasPreset.addEventListener('change', resizeFromPreset);
+
+  // ─── Live color update even when paused ──────────────────────────────────────
+  el.waveColor.addEventListener('input', () => {
+    drawScene(1);   // force redraw instantly on color change
+  });
 
   // ─── Default background loader ───────────────────────────────────────────────
   function loadDefaultBackground() {
@@ -1370,23 +1354,14 @@
 
     function nudgeBg(dx, dy) {
       const scale = getCanvasScale();
-      let nx = clamp(
-        parseInt(el.bgOffsetX.value, 10) + dx * scale.x * SENS,
-        parseInt(el.bgOffsetX.min, 10),
-        parseInt(el.bgOffsetX.max, 10)
-      );
-      let ny = clamp(
-        parseInt(el.bgOffsetY.value, 10) + dy * scale.y * SENS,
-        parseInt(el.bgOffsetY.min, 10),
-        parseInt(el.bgOffsetY.max, 10)
-      );
+      let nx = clamp(parseInt(el.bgOffsetX.value, 10) + dx * scale.x * SENS, parseInt(el.bgOffsetX.min,10), parseInt(el.bgOffsetX.max,10));
+      let ny = clamp(parseInt(el.bgOffsetY.value, 10) + dy * scale.y * SENS, parseInt(el.bgOffsetY.min,10), parseInt(el.bgOffsetY.max,10));
       el.bgOffsetX.value = Math.round(nx);
       el.bgOffsetY.value = Math.round(ny);
       updateReadout(el.bgOffsetX, 'vBgOffsetX');
       updateReadout(el.bgOffsetY, 'vBgOffsetY');
     }
 
-    // Single finger / mouse drag
     canvas.addEventListener('pointerdown', e => {
       if (e.button !== 0 && e.pointerType !== 'touch') return;
       dragging = true;
@@ -1417,7 +1392,6 @@
     canvas.addEventListener('pointercancel', endDrag);
     canvas.addEventListener('lostpointercapture', endDrag);
 
-    // Pinch-to-zoom for background scale
     let lastPinchDist = 0;
     canvas.addEventListener('touchstart', e => {
       if (e.touches.length === 2) {
@@ -1454,9 +1428,8 @@
   // ─── Init ─────────────────────────────────────────────────────────────────────
   resizeFromPreset();
   updateSeekUi(true);
-  cancelAnimationFrame(rafId);
   loadDefaultBackground();
-  frame(performance.now());
+  frame(performance.now());   // visual loop always runs
 </script>
 </body>
 </html>
