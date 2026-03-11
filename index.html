@@ -128,7 +128,6 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* Energy meters */
     .energy-bar-row {
       display: flex;
       gap: 6px;
@@ -164,7 +163,6 @@
       letter-spacing: 0.05em;
     }
 
-    /* Controls grid */
     .controls {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -224,7 +222,6 @@
       cursor: pointer;
     }
 
-    /* Stage */
     .stage-panel { padding: 8px; width: 82%; margin: 0 auto; }
 
     .stage-wrap {
@@ -260,7 +257,6 @@
       line-height: 1.6;
     }
 
-    /* Beat flash overlay */
     .beat-flash {
       position: fixed;
       inset: 0;
@@ -300,14 +296,10 @@
             <label class="file-btn">Load music
               <input id="musicInput" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" />
             </label>
-            <label class="file-btn">Load media
-              <input id="mediaInput" type="file" accept="image/*,video/*,.webm,.mov,.mp4,.png" />
-            </label>
             <label class="file-btn">Load background
               <input id="bgInput" type="file" accept="image/*,video/*,.webm,.mov,.mp4,.png,.jpg,.jpeg" />
             </label>
             <button id="clearMusicBtn" type="button">Clear music</button>
-            <button id="clearMediaBtn" type="button">Reset media</button>
             <button id="clearBgBtn" type="button">Clear bg</button>
             <button id="playPauseBtn" type="button">Pause</button>
             <button id="startRecBtn" type="button">Record</button>
@@ -325,7 +317,6 @@
             <div class="time-readout" id="musicTime">00:00 / 00:00</div>
           </div>
 
-          <!-- Live energy meters -->
           <div class="energy-bar-row">
             <span class="energy-label">BASS</span>
             <div class="energy-meter em-bass"><div class="energy-meter-fill" id="emBass"></div></div>
@@ -349,7 +340,7 @@
         </div>
       </div>
 
-      <!-- Right column: controls -->
+      <!-- Right column: controls (media section removed) -->
       <div class="controls">
 
         <div class="ctrl-section">— Wave</div>
@@ -382,8 +373,8 @@
         <label><span>Smoothing <em id="vAudioSmooth">84</em></span>
           <input id="audioSmooth" type="range" min="0" max="100" step="1" value="84">
         </label>
-        <label><span>Wave width <em id="vWaveWidth">118</em></span>
-          <input id="waveWidth" type="range" min="70" max="160" step="1" value="118">
+        <label><span>Wave width <em id="vWaveWidth">185</em></span>
+          <input id="waveWidth" type="range" min="70" max="280" step="1" value="185">
         </label>
         <label><span>Wave height <em id="vWaveHeight">36</em></span>
           <input id="waveHeight" type="range" min="15" max="70" step="1" value="36">
@@ -457,18 +448,7 @@
         <label><span>Viz Y <em id="vVizOffsetY">0</em></span>
           <input id="vizOffsetY" type="range" min="-300" max="300" step="1" value="0">
         </label>
-        <label><span>Media scale <em id="vMediaScale">100</em></span>
-          <input id="mediaScale" type="range" min="20" max="200" step="1" value="100">
-        </label>
-        <label><span>Media X <em id="vMediaOffsetX">0</em></span>
-          <input id="mediaOffsetX" type="range" min="-500" max="500" step="1" value="0">
-        </label>
-        <label><span>Media Y <em id="vMediaOffsetY">0</em></span>
-          <input id="mediaOffsetY" type="range" min="-400" max="400" step="1" value="0">
-        </label>
-        <label><span>Media opacity <em id="vMediaOpacity">100</em></span>
-          <input id="mediaOpacity" type="range" min="0" max="100" step="1" value="100">
-        </label>
+
         <label><span>BG scale <em id="vBgScale">100</em></span>
           <input id="bgScale" type="range" min="20" max="250" step="1" value="100">
         </label>
@@ -481,6 +461,7 @@
         <label><span>BG opacity <em id="vBgOpacity">100</em></span>
           <input id="bgOpacity" type="range" min="0" max="100" step="1" value="100">
         </label>
+
         <label>Canvas size
           <select id="canvasPreset">
             <option value="700x400" selected>700 × 400</option>
@@ -501,7 +482,7 @@
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: false });
 
-  // ─── DOM element map ─────────────────────────────────────────────────────────
+  // ─── DOM element map (media removed) ────────────────────────────────────────
   const el = {};
   [
     'barStyle','bars','glow','motion','audioInfluence','audioSmooth','waveWidth','waveHeight','waveOffsetY',
@@ -509,10 +490,9 @@
     'beatSensitivity','bloom','colorShift','ringPulse','fftSize',
     'dustAmount','dustDelay','dustSpeed','dustSize','dustSpread','dustAlpha',
     'vizScale','vizOffsetX','vizOffsetY',
-    'mediaScale','mediaOffsetX','mediaOffsetY','mediaOpacity',
     'bgScale','bgOffsetX','bgOffsetY','bgOpacity',
-    'canvasPreset','musicInput','musicSeek','musicTime','mediaInput','bgInput',
-    'clearMusicBtn','clearMediaBtn','clearBgBtn','playPauseBtn',
+    'canvasPreset','musicInput','musicSeek','musicTime','bgInput',
+    'clearMusicBtn','clearBgBtn','playPauseBtn',
     'startRecBtn','stopRecBtn','recordMime','status',
     'emBass','emMid','emHi','beatFlash'
   ].forEach(id => { el[id] = document.getElementById(id); });
@@ -527,8 +507,7 @@
     dustAmount:'vDustAmount', dustDelay:'vDustDelay', dustSpeed:'vDustSpeed',
     dustSize:'vDustSize', dustSpread:'vDustSpread', dustAlpha:'vDustAlpha',
     vizScale:'vVizScale', vizOffsetX:'vVizOffsetX', vizOffsetY:'vVizOffsetY',
-    mediaScale:'vMediaScale', mediaOffsetX:'vMediaOffsetX', mediaOffsetY:'vMediaOffsetY',
-    mediaOpacity:'vMediaOpacity', bgScale:'vBgScale', bgOffsetX:'vBgOffsetX',
+    bgScale:'vBgScale', bgOffsetX:'vBgOffsetX',
     bgOffsetY:'vBgOffsetY', bgOpacity:'vBgOpacity'
   };
 
@@ -550,7 +529,7 @@
     update();
   });
 
-  // ─── Default media asset (loaded from local folder) ───────────────────────────
+  // ─── Default background asset ───────────────────────────────────────────────
   const ASSET_DEFAULT_SRC = 'asset01.png';
 
   // ─── State ───────────────────────────────────────────────────────────────────
@@ -560,7 +539,6 @@
   let running = true;
   let rafId = 0;
 
-  let mediaLayer = null;
   let bgLayer = null;
   let audioLayer = null;
   let isSeeking = false;
@@ -594,7 +572,7 @@
 
   function formatTime(s) {
     if (!Number.isFinite(s) || s < 0) return '00:00';
-    return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+    return `\( {String(Math.floor(s/60)).padStart(2,'0')}: \){String(Math.floor(s%60)).padStart(2,'0')}`;
   }
 
   function hexToRgb(hex) {
@@ -602,7 +580,6 @@
     return { r: (n>>16)&255, g: (n>>8)&255, b: n&255 };
   }
 
-  // Shift hue of an RGB color by `deg` degrees
   function shiftHue(rgb, deg) {
     if (deg === 0) return rgb;
     const h = deg / 360;
@@ -710,7 +687,6 @@
       audioSourceNode = c.createMediaElementSource(audio);
       audioSourceNode.connect(analyserNode);
     } catch(e) {
-      // Element may already be connected
       console.warn('Audio source connect:', e);
     }
     return true;
@@ -732,7 +708,6 @@
     running = false;
     el.playPauseBtn.textContent = 'Play';
     if (bgLayer?.kind === 'video') bgLayer.element.pause();
-    if (mediaLayer?.kind === 'video') mediaLayer.element.pause();
     updateSeekUi(true);
     drawScene();
     setStatus('Playback finished.');
@@ -753,7 +728,7 @@
       if (running) {
         await resumeAudioContext();
         audio.play().then(() => {
-          setStatus(`Music: ${file.name}${ok ? ' — FFT active' : ''}`);
+          setStatus(`Music: \( {file.name} \){ok ? ' — FFT active' : ''}`);
         }).catch(() => {
           setStatus(`Music loaded: ${file.name}. Press Play.`);
         });
@@ -838,7 +813,6 @@
     const beat = detectBeat(bassRaw, sensitivity);
     if (beat) triggerBeatFlash();
 
-    // Update energy meters (throttled via RAF)
     el.emBass.style.width = `${clamp(energyState.bass * 100, 0, 100)}%`;
     el.emMid.style.width  = `${clamp(energyState.mid  * 100, 0, 100)}%`;
     el.emHi.style.width   = `${clamp(energyState.treble * 100, 0, 100)}%`;
@@ -849,7 +823,6 @@
     const binCount = frequencyData.length;
 
     for (let i = 0; i < barCount; i++) {
-      // Logarithmic frequency mapping — sounds much more natural
       const logLo = Math.pow(i / barCount, 1.8) * binCount * 0.85;
       const logHi = Math.pow((i + 1) / barCount, 1.8) * binCount * 0.85;
       const start = Math.floor(logLo);
@@ -859,7 +832,7 @@
       for (let j = start; j < end && j < binCount; j++) { total += frequencyData[j]; cnt++; }
 
       const raw    = cnt ? total / cnt / 255 : 0;
-      const shaped = Math.pow(raw, 0.82); // slight gamma for presence
+      const shaped = Math.pow(raw, 0.82);
       const mixed  = shaped * influence + (0.18 + 0.18 * Math.sin(t * 0.035 + i * 0.22)) * (1 - influence);
       const lerp   = 0.10 + (1 - smoothing) * 0.22;
       barMemory[i] += (mixed - barMemory[i]) * lerp;
@@ -880,7 +853,7 @@
     ctx.moveTo(-size, 0);
     ctx.quadraticCurveTo(-size * 0.35, -size * 0.85, 0, 0);
     ctx.quadraticCurveTo(size * 0.35, size * 0.85, size, 0);
-    ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},${alpha})`;
+    ctx.strokeStyle = `rgba(\( {color.r}, \){color.g},\( {color.b}, \){alpha})`;
     ctx.lineWidth = Math.max(1.2, size * 0.22);
     ctx.lineCap = 'round';
     ctx.stroke();
@@ -903,23 +876,6 @@
     ctx.restore();
   }
 
-  function drawMediaInsideCircle(asset, cx, cy, radius, opacity, scale, offsetX, offsetY) {
-    if (!asset || !asset.ready) return;
-    const srcW = asset.width, srcH = asset.height;
-    if (!srcW || !srcH) return;
-    const box = radius * 2 * 0.88;
-    const bs  = Math.min(box / srcW, box / srcH);
-    const dw  = srcW * bs * scale;
-    const dh  = srcH * bs * scale;
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius * 0.86, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.globalAlpha = opacity;
-    ctx.drawImage(asset.element, cx - dw/2 + offsetX, cy - dh/2 + offsetY, dw, dh);
-    ctx.restore();
-  }
-
   // ─── Particles ────────────────────────────────────────────────────────────────
   function ensureParticles(count) {
     while (particles.length < count) {
@@ -928,56 +884,28 @@
     if (particles.length > count) particles.length = count;
   }
 
-  // ─── Asset overlay — draws the currently loaded media asset over the visualizer ─
-  function drawAssetOverlay(asset, cx, cy, radius, s) {
-    if (!asset || !asset.ready) return;
-    const srcW = asset.width, srcH = asset.height;
-    if (!srcW || !srcH) return;
-    // s.mediaScale is already 0.0–2.0 (pre-divided in getSettings)
-    // s.mediaOpacity is raw 0–100 (not pre-divided)
-    const diameter = radius * 2 * s.mediaScale * 1.08;
-    const aspect   = srcW / srcH;
-    let dw, dh;
-    if (aspect >= 1) { dw = diameter; dh = diameter / aspect; }
-    else             { dh = diameter; dw = diameter * aspect; }
-    ctx.save();
-    ctx.globalAlpha = s.mediaOpacity / 100;
-    ctx.drawImage(
-      asset.element,
-      cx - dw / 2 + s.mediaOffsetX,
-      cy - dh / 2 + s.mediaOffsetY,
-      dw, dh
-    );
-    ctx.restore();
-  }
-
-  // ─── Main badge renderer ──────────────────────────────────────────────────────
+  // ─── Main badge renderer (NO CIRCLE CLIP + NO MEDIA OVERLAY) ─────────────────
   function drawBadge(cx, cy, radius, s, dt) {
     const baseColor = hexToRgb(s.waveColor);
     const audioFrame = getAudioFrame(s.bars, s.audioInfluence / 100, s.audioSmooth / 100, s.beatSensitivity / 100);
 
-    // Color shift driven by bass energy + manual shift control
     const hueShift = (s.colorShift / 100) * 360 * energyState.bass;
     const color = shiftHue(baseColor, hueShift);
 
     ctx.save();
     ctx.translate(cx, cy);
 
-    // ── Ring glow (no arc stroke — asset PNG provides the ring visually) ──────
-    // ringPulse kept for wave height modulation
     const ringPulseAmt = s.ringPulse / 100;
     const ringPulse = 1 + audioFrame.bass * 0.16 * ringPulseAmt + audioFrame.pulse * 0.26 * ringPulseAmt;
 
-    // ── Shared wave geometry ────────────────────────────────────────────────
     const waveWidth   = radius * (s.waveWidth / 100);
     const waveHeight  = radius * (s.waveHeight / 100) * (1 + audioFrame.bass * 0.24);
     const spacing     = waveWidth / s.bars;
     const centerY     = s.waveOffsetY;
     const motionBoost = 0.24 + (s.motion / 100) * 1.8;
     const glowVal     = s.glow * (0.65 + audioFrame.overall * 0.85);
-    const rgba        = (a) => `rgba(${color.r},${color.g},${color.b},${a})`;
+    const rgba        = (a) => `rgba(\( {color.r}, \){color.g},\( {color.b}, \){a})`;
 
-    // Build per-bar heights (used by all styles + dust)
     const heights = [];
     for (let i = 0; i < s.bars; i++) {
       const norm      = i / Math.max(1, s.bars - 1);
@@ -987,22 +915,14 @@
       heights.push({ x: -waveWidth/2 + spacing * (i + 0.5), h });
     }
 
-    // ── Clip inner circle (all linear styles) ────────────────────────────────
     const isRadial = (s.barStyle === 'circle' || s.barStyle === 'arc');
-    if (!isRadial) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(0, 0, radius * 0.86, 0, Math.PI * 2);
-      ctx.clip();
-    }
+    // REMOVED CIRCULAR CLIP ENTIRELY - visuals now draw full on background
 
     ctx.shadowBlur  = glowVal;
     ctx.shadowColor = rgba(0.95);
 
-    // ══ BAR STYLE DISPATCHER ════════════════════════════════════════════════
-
+    // ══ BAR STYLE DISPATCHER (same as original) ═══════════════════════════════
     if (s.barStyle === 'dots') {
-      // ── Original dot columns ──────────────────────────────────────────────
       const dotR = Math.max(2.2, spacing * (s.dotSize / 100) * (1 + audioFrame.treble * 0.18));
       ctx.beginPath();
       for (const { x, h } of heights) {
@@ -1020,7 +940,6 @@
       ctx.fill();
 
     } else if (s.barStyle === 'classic') {
-      // ── Solid filled rectangles, symmetric up/down ───────────────────────
       const bw = spacing * 0.72;
       for (const { x, h } of heights) {
         const alpha = 0.6 + audioFrame.overall * 0.4;
@@ -1030,7 +949,6 @@
       }
 
     } else if (s.barStyle === 'mirror') {
-      // ── Gradient-filled mirror bars ───────────────────────────────────────
       const bw = spacing * 0.65;
       for (const { x, h } of heights) {
         const grad = ctx.createLinearGradient(x, centerY - h, x, centerY + h);
@@ -1044,10 +962,8 @@
       }
 
     } else if (s.barStyle === 'neon') {
-      // ── Neon glowing stroked tubes ────────────────────────────────────────
       const lw = Math.max(2, spacing * 0.45);
       ctx.lineCap = 'round';
-      // Inner bright stroke
       ctx.lineWidth   = lw * 0.35;
       ctx.strokeStyle = rgba(1.0);
       ctx.shadowBlur  = glowVal * 2.5;
@@ -1057,7 +973,6 @@
         ctx.lineTo(x, centerY + h);
       }
       ctx.stroke();
-      // Outer soft halo
       ctx.lineWidth   = lw;
       ctx.strokeStyle = rgba(0.22 + audioFrame.overall * 0.2);
       ctx.shadowBlur  = glowVal * 4;
@@ -1070,9 +985,7 @@
       ctx.lineCap = 'butt';
 
     } else if (s.barStyle === 'circle') {
-      // ── Radial circle — bars shoot outward from centre ────────────────────
       ctx.save();
-      ctx.translate(0, 0); // already at cx,cy from outer save
       const innerR  = radius * 0.18;
       const barLenMax = radius * 0.68;
       for (let i = 0; i < s.bars; i++) {
@@ -1085,7 +998,6 @@
         const y1     = Math.sin(angle) * innerR;
         const x2     = Math.cos(angle) * len;
         const y2     = Math.sin(angle) * len;
-        // gradient per bar
         const grad   = ctx.createLinearGradient(x1, y1, x2, y2);
         grad.addColorStop(0, rgba(0.1));
         grad.addColorStop(1, rgba(alpha));
@@ -1102,7 +1014,6 @@
       ctx.restore();
 
     } else if (s.barStyle === 'arc') {
-      // ── Arc burst — arcs arranged around a circle ─────────────────────────
       ctx.save();
       const arcR    = radius * 0.55;
       const arcSpan = (Math.PI * 2) / s.bars;
@@ -1124,7 +1035,6 @@
       ctx.restore();
 
     } else if (s.barStyle === 'ribbon') {
-      // ── Smooth ribbon wave (filled bezier) ───────────────────────────────
       const topPts = heights.map(({ x, h }) => ({ x, y: centerY - h }));
       const botPts = heights.map(({ x, h }) => ({ x, y: centerY + h }));
       const grad   = ctx.createLinearGradient(-waveWidth/2, 0, waveWidth/2, 0);
@@ -1137,14 +1047,12 @@
       ctx.shadowBlur  = glowVal * 1.4;
       ctx.shadowColor = rgba(0.7);
       ctx.beginPath();
-      // top curve
       ctx.moveTo(topPts[0].x, topPts[0].y);
       for (let i = 1; i < topPts.length; i++) {
         const mx = (topPts[i-1].x + topPts[i].x) / 2;
         ctx.quadraticCurveTo(topPts[i-1].x, topPts[i-1].y, mx, (topPts[i-1].y + topPts[i].y)/2);
       }
       ctx.lineTo(topPts[topPts.length-1].x, topPts[topPts.length-1].y);
-      // bottom curve reversed
       ctx.lineTo(botPts[botPts.length-1].x, botPts[botPts.length-1].y);
       for (let i = botPts.length - 2; i >= 0; i--) {
         const mx = (botPts[i+1].x + botPts[i].x) / 2;
@@ -1154,7 +1062,6 @@
       ctx.fill();
 
     } else if (s.barStyle === 'blocks') {
-      // ── Stacked square blocks ─────────────────────────────────────────────
       const bw        = spacing * 0.68;
       const blockSize = Math.max(3, bw * 0.85);
       const gap       = bw * 0.15;
@@ -1166,9 +1073,7 @@
           ctx.shadowBlur  = j === 0 ? glowVal * 1.5 : glowVal * 0.4;
           ctx.shadowColor = rgba(0.8);
           const yOff = j * (blockSize + gap) + blockSize / 2;
-          // top stack
           ctx.fillRect(x - bw/2, centerY - yOff - blockSize/2, bw, blockSize);
-          // bottom mirror
           ctx.fillRect(x - bw/2, centerY + yOff - blockSize/2, bw, blockSize);
         }
       }
@@ -1176,7 +1081,6 @@
 
     ctx.shadowBlur = 0;
 
-    // ── Bloom / softness pass (linear styles only) ───────────────────────────
     if (!isRadial && (s.softness > 0 || s.bloom > 0)) {
       ctx.globalCompositeOperation = 'screen';
       const blurAmt = Math.round(s.softness * 1.5 + (s.bloom / 100) * 8 + audioFrame.bass * 6);
@@ -1196,7 +1100,6 @@
       ctx.globalCompositeOperation = 'source-over';
     }
 
-    // ── Dust / particles ─────────────────────────────────────────────────────
     ensureParticles(s.dustAmount);
     ctx.shadowBlur  = s.glow * 0.8;
     ctx.shadowColor = rgba(0.85);
@@ -1214,7 +1117,6 @@
     }
     ctx.shadowBlur = 0;
 
-    // ── Edge fade mask (linear styles) ───────────────────────────────────────
     if (!isRadial) {
       const fade = ctx.createLinearGradient(-waveWidth/2, 0, waveWidth/2, 0);
       const edge = Math.min(0.45, s.fadeEdge / 100);
@@ -1225,13 +1127,10 @@
       ctx.globalCompositeOperation = 'destination-in';
       ctx.fillStyle = fade;
       ctx.fillRect(-waveWidth/2, centerY - waveHeight - 120, waveWidth, waveHeight * 2 + 240);
-      ctx.restore(); // restore clip
+      ctx.globalCompositeOperation = 'source-over';
     }
 
-    ctx.restore(); // restore translate
-
-    // ── Media asset drawn ON TOP — it is the circle frame, not clipped content ─
-    drawAssetOverlay(mediaLayer, cx, cy, radius, s);
+    ctx.restore();
   }
 
   // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -1264,10 +1163,6 @@
       vizScale:        parseInt(el.vizScale.value, 10) / 100,
       vizOffsetX:      parseInt(el.vizOffsetX.value, 10),
       vizOffsetY:      parseInt(el.vizOffsetY.value, 10),
-      mediaScale:      parseInt(el.mediaScale.value, 10) / 100,
-      mediaOffsetX:    parseInt(el.mediaOffsetX.value, 10),
-      mediaOffsetY:    parseInt(el.mediaOffsetY.value, 10),
-      mediaOpacity:    parseInt(el.mediaOpacity.value, 10),
       bgScale:         parseInt(el.bgScale.value, 10) / 100,
       bgOffsetX:       parseInt(el.bgOffsetX.value, 10),
       bgOffsetY:       parseInt(el.bgOffsetY.value, 10),
@@ -1293,7 +1188,7 @@
     drawBadge(cx, cy, radius, s, dt);
   }
 
-  // ─── Animation loop with delta time ──────────────────────────────────────────
+  // ─── Animation loop ──────────────────────────────────────────────────────────
   function frame(timestamp) {
     const dt = lastTimestamp ? Math.min((timestamp - lastTimestamp) / 16.667, 3) : 1;
     lastTimestamp = timestamp;
@@ -1301,7 +1196,7 @@
     drawScene(dt);
     if (!running) return;
 
-    t += dt; // delta-scaled time — frame rate independent
+    t += dt;
     rafId = requestAnimationFrame(frame);
   }
 
@@ -1310,18 +1205,17 @@
     setFftSize(+el.fftSize.value);
   });
 
-  // ─── Asset loading ────────────────────────────────────────────────────────────
+  // ─── Asset loading (only background now) ─────────────────────────────────────
   function resizeFromPreset() {
     const [w, h] = el.canvasPreset.value.split('x').map(Number);
     canvas.width = w; canvas.height = h;
     setStatus(`Canvas: ${w} × ${h}`);
   }
 
-  function loadAssetFromFile(file, kind) {
+  function loadBackgroundFromFile(file) {
     if (!file) return;
     const url = URL.createObjectURL(file);
     const isVideo = file.type.startsWith('video/') || /\.(webm|mp4|mov)$/i.test(file.name);
-    const label = kind === 'bg' ? 'background' : 'media';
 
     if (isVideo) {
       const video = document.createElement('video');
@@ -1329,35 +1223,30 @@
       video.crossOrigin = 'anonymous';
       video.addEventListener('loadedmetadata', async () => {
         try { if (running) await video.play(); } catch(e) {}
-        const asset = { kind:'video', element:video, width:video.videoWidth, height:video.videoHeight, ready:true, url };
-        if (kind === 'bg') { clearAsset('bg'); bgLayer = asset; }
-        else { clearAsset('media'); mediaLayer = asset; }
-        setStatus(`${label} video: ${file.name}`);
+        bgLayer = { kind:'video', element:video, width:video.videoWidth, height:video.videoHeight, ready:true, url };
+        setStatus(`Background video: ${file.name}`);
       }, { once: true });
-      video.addEventListener('error', () => { setStatus(`Could not load ${label} video.`); URL.revokeObjectURL(url); });
+      video.addEventListener('error', () => { setStatus(`Could not load background video.`); URL.revokeObjectURL(url); });
       return;
     }
 
     const img = new Image();
     img.onload = () => {
-      const asset = { kind:'image', element:img, width:img.naturalWidth, height:img.naturalHeight, ready:true, url };
-      if (kind === 'bg') { clearAsset('bg'); bgLayer = asset; }
-      else { clearAsset('media'); mediaLayer = asset; }
-      setStatus(`${label} image: ${file.name}`);
+      bgLayer = { kind:'image', element:img, width:img.naturalWidth, height:img.naturalHeight, ready:true, url };
+      setStatus(`Background image: ${file.name}`);
     };
-    img.onerror = () => { setStatus(`Could not load ${label} image.`); URL.revokeObjectURL(url); };
+    img.onerror = () => { setStatus(`Could not load background image.`); URL.revokeObjectURL(url); };
     img.src = url;
   }
 
-  function clearAsset(kind) {
-    const asset = kind === 'bg' ? bgLayer : mediaLayer;
-    if (!asset) return;
-    if (asset.kind === 'video') { asset.element.pause(); asset.element.removeAttribute('src'); asset.element.load(); }
-    if (asset.url) URL.revokeObjectURL(asset.url);
-    if (kind === 'bg') bgLayer = null; else mediaLayer = null;
+  function clearBackground() {
+    if (!bgLayer) return;
+    if (bgLayer.kind === 'video') { bgLayer.element.pause(); bgLayer.element.removeAttribute('src'); bgLayer.element.load(); }
+    if (bgLayer.url) URL.revokeObjectURL(bgLayer.url);
+    bgLayer = null;
   }
 
-  // ─── Recording ────────────────────────────────────────────────────────────────
+  // ─── Recording (unchanged) ───────────────────────────────────────────────────
   function getSupportedMime(preferred) {
     const candidates = preferred === 'auto'
       ? ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']
@@ -1413,8 +1302,7 @@
     running = !running;
     el.playPauseBtn.textContent = running ? 'Pause' : 'Play';
     if (running) await resumeAudioContext();
-    if (bgLayer?.kind === 'video')    { running ? bgLayer.element.play().catch(()=>{}) : bgLayer.element.pause(); }
-    if (mediaLayer?.kind === 'video') { running ? mediaLayer.element.play().catch(()=>{}) : mediaLayer.element.pause(); }
+    if (bgLayer?.kind === 'video') { running ? bgLayer.element.play().catch(()=>{}) : bgLayer.element.pause(); }
     if (audioLayer?.element) {
       if (running) {
         audioLayer.element.play().catch(() => setStatus('Press Play again — browser blocked autoplay.'));
@@ -1431,21 +1319,19 @@
   el.musicInput.addEventListener('change', e => { loadAudioFromFile(e.target.files[0]); e.target.value = ''; });
   el.musicSeek.addEventListener('input',  () => { isSeeking = true; if (audioLayer?.element) { audioLayer.element.currentTime = +el.musicSeek.value || 0; updateSeekUi(true); } });
   el.musicSeek.addEventListener('change', () => { isSeeking = false; updateSeekUi(true); });
-  el.mediaInput.addEventListener('change', e => { loadAssetFromFile(e.target.files[0], 'media'); e.target.value = ''; });
-  el.bgInput.addEventListener('change',    e => { loadAssetFromFile(e.target.files[0], 'bg');    e.target.value = ''; });
+  el.bgInput.addEventListener('change', e => { loadBackgroundFromFile(e.target.files[0]); e.target.value = ''; });
   el.clearMusicBtn.addEventListener('click', () => { clearMusic(); setStatus('Music cleared.'); });
-  el.clearMediaBtn.addEventListener('click', () => { clearAsset('media'); loadDefaultMedia(); setStatus('Media reset to default asset.'); });
-  el.clearBgBtn.addEventListener('click',   () => { clearAsset('bg');    setStatus('Background cleared.'); });
+  el.clearBgBtn.addEventListener('click', () => { clearBackground(); setStatus('Background cleared.'); });
   el.playPauseBtn.addEventListener('click', togglePlayPause);
   el.startRecBtn.addEventListener('click', startRecording);
   el.stopRecBtn.addEventListener('click',  stopRecording);
   el.canvasPreset.addEventListener('change', resizeFromPreset);
 
-  // ─── Default media loader ─────────────────────────────────────────────────────
-  function loadDefaultMedia() {
+  // ─── Default background loader ───────────────────────────────────────────────
+  function loadDefaultBackground() {
     const img = new Image();
     img.onload = () => {
-      mediaLayer = {
+      bgLayer = {
         kind: 'image',
         element: img,
         width: img.naturalWidth,
@@ -1454,18 +1340,17 @@
         url: null,
         isDefault: true
       };
-      setStatus('Default folder asset loaded (asset01.png).');
+      setStatus('Default background asset01.png loaded behind visualizer.');
     };
     img.onerror = () => {
-      setStatus('Default folder asset not found. Put asset01.png beside this HTML file.');
+      setStatus('Default background not found. Put asset01.png beside this HTML file.');
     };
     img.src = ASSET_DEFAULT_SRC;
   }
 
-  // ─── Drag controls on canvas preview ───────────────────────────────────────
-  (function attachCanvasDrag() {
+  // ─── Drag + Pinch gestures for background ────────────────────────────────────
+  (function attachCanvasGestures() {
     let dragging = false;
-    let dragMode = 'bg';
     let pointerId = null;
     let lastX = 0, lastY = 0;
     const SENS = 1.8;
@@ -1483,37 +1368,29 @@
       if (out) out.textContent = input.value;
     }
 
-    function nudgePair(xInput, yInput, xOutId, yOutId, dx, dy) {
+    function nudgeBg(dx, dy) {
       const scale = getCanvasScale();
-      const nx = clamp(
-        parseInt(xInput.value, 10) + dx * scale.x * SENS,
-        parseInt(xInput.min, 10),
-        parseInt(xInput.max, 10)
+      let nx = clamp(
+        parseInt(el.bgOffsetX.value, 10) + dx * scale.x * SENS,
+        parseInt(el.bgOffsetX.min, 10),
+        parseInt(el.bgOffsetX.max, 10)
       );
-      const ny = clamp(
-        parseInt(yInput.value, 10) + dy * scale.y * SENS,
-        parseInt(yInput.min, 10),
-        parseInt(yInput.max, 10)
+      let ny = clamp(
+        parseInt(el.bgOffsetY.value, 10) + dy * scale.y * SENS,
+        parseInt(el.bgOffsetY.min, 10),
+        parseInt(el.bgOffsetY.max, 10)
       );
-      xInput.value = Math.round(nx);
-      yInput.value = Math.round(ny);
-      updateReadout(xInput, xOutId);
-      updateReadout(yInput, yOutId);
+      el.bgOffsetX.value = Math.round(nx);
+      el.bgOffsetY.value = Math.round(ny);
+      updateReadout(el.bgOffsetX, 'vBgOffsetX');
+      updateReadout(el.bgOffsetY, 'vBgOffsetY');
     }
 
-    function nudgeActive(dx, dy) {
-      if (dragMode === 'media') {
-        nudgePair(el.mediaOffsetX, el.mediaOffsetY, 'vMediaOffsetX', 'vMediaOffsetY', dx, dy);
-      } else {
-        nudgePair(el.bgOffsetX, el.bgOffsetY, 'vBgOffsetX', 'vBgOffsetY', dx, dy);
-      }
-    }
-
+    // Single finger / mouse drag
     canvas.addEventListener('pointerdown', e => {
       if (e.button !== 0 && e.pointerType !== 'touch') return;
       dragging = true;
       pointerId = e.pointerId;
-      dragMode = e.shiftKey ? 'media' : 'bg';
       lastX = e.clientX;
       lastY = e.clientY;
       canvas.setPointerCapture?.(e.pointerId);
@@ -1523,7 +1400,7 @@
 
     canvas.addEventListener('pointermove', e => {
       if (!dragging || e.pointerId !== pointerId) return;
-      nudgeActive(e.clientX - lastX, e.clientY - lastY);
+      nudgeBg(e.clientX - lastX, e.clientY - lastY);
       lastX = e.clientX;
       lastY = e.clientY;
       e.preventDefault();
@@ -1540,16 +1417,45 @@
     canvas.addEventListener('pointercancel', endDrag);
     canvas.addEventListener('lostpointercapture', endDrag);
 
+    // Pinch-to-zoom for background scale
+    let lastPinchDist = 0;
+    canvas.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastPinchDist = Math.hypot(dx, dy);
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+      if (e.touches.length === 2 && lastPinchDist > 0) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        const delta = (dist - lastPinchDist) * 0.18;
+        let newScale = parseInt(el.bgScale.value) + delta;
+        newScale = clamp(Math.round(newScale), 20, 250);
+        el.bgScale.value = newScale;
+        const out = document.getElementById('vBgScale');
+        if (out) out.textContent = newScale;
+        lastPinchDist = dist;
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => { lastPinchDist = 0; });
+
     canvas.style.cursor = 'grab';
     canvas.style.touchAction = 'none';
-    canvas.title = 'Drag to reposition background. Hold Shift while dragging to reposition the media asset.';
+    canvas.title = 'Drag to reposition background • Pinch with two fingers to resize background';
   })();
 
   // ─── Init ─────────────────────────────────────────────────────────────────────
   resizeFromPreset();
   updateSeekUi(true);
   cancelAnimationFrame(rafId);
-  loadDefaultMedia();   // async img load — mediaLayer will be set within first frames
+  loadDefaultBackground();
   frame(performance.now());
 </script>
 </body>
