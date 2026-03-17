@@ -241,7 +241,6 @@ KNOWN LIMITATIONS
 
 
 ## License
-MIT LICENSE
 
 Copyright 2026 Pezhman Farhangi IUS Music
 
