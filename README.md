@@ -1,4 +1,11 @@
-### IUS Visualizer
+
+<a href="LICENSE">
+  <img src="images/license-badge.png" alt="License badge" width="70">
+</a>
+
+
+
+## IUS Visualizer
 
 https://iusmusic.github.io/IUSV/
 
@@ -256,3 +263,10 @@ Trademark and brand notice
 The code in this repository is licensed separately under the MIT License. That software license does not grant permission to use the IUS name, the IUS Music name, the official logo, the visual identity, artwork, images, audio branding, or other protected brand assets unless explicit written permission is given by IUS Music.
 
 All rights in the IUS, I/US and IUS Music brand identity are reserved.
+
+
+
+
+<a href="LICENSE">
+  <img src="images/license-badge.png" alt="License badge" width="70">
+</a>
